@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 STRAVA_TOKEN = os.getenv("STRAVA_ACCESS_TOKEN")
-
 BASE_URL = "https://www.strava.com/api/v3"
 
 
