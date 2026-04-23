@@ -15,6 +15,7 @@ from tests.conftest import (
     MOCK_CLUBS,
     MOCK_SEGMENTS_RESPONSE,
     MOCK_TOKEN_RESPONSE,
+    MOCK_GEAR,
 )
 
 
@@ -196,6 +197,30 @@ def test_get_athlete_clubs_error(mock_get):
 
     with pytest.raises(Exception, match="Strava API error"):
         get_athlete_clubs()
+
+
+# ── get_gear ──
+
+@patch("services.strava.requests.get")
+def test_get_gear_success(mock_get):
+    from services.strava import get_gear
+
+    mock_get.return_value = MockResponse(MOCK_GEAR)
+    result = get_gear("b12345")
+
+    assert result["id"] == "b12345"
+    assert result["name"] == "Tarmac SL7"
+    assert "gear/b12345" in str(mock_get.call_args)
+
+
+@patch("services.strava.requests.get")
+def test_get_gear_not_found(mock_get):
+    from services.strava import get_gear
+
+    mock_get.return_value = MockResponse({"message": "Not Found"}, status_code=404)
+
+    with pytest.raises(Exception, match="Strava API error"):
+        get_gear("b99999")
 
 
 # ── explore_segments ──

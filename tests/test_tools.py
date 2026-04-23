@@ -12,6 +12,7 @@ from tests.conftest import (
     MOCK_ZONES,
     MOCK_CLUBS,
     MOCK_SEGMENTS_RESPONSE,
+    MOCK_GEAR,
 )
 
 
@@ -158,3 +159,26 @@ def test_explore_segments_tool_missing_bounds():
 
     with pytest.raises(ValueError, match="bounds is required"):
         explore_segments_tool({})
+
+
+# ── get_gear ──
+
+@patch("tools.gear.get_gear", return_value=MOCK_GEAR)
+def test_get_gear_tool(mock):
+    from tools.gear import get_gear_tool
+
+    result = get_gear_tool({"gear_id": "b12345"})
+
+    assert result["id"] == "b12345"
+    assert result["name"] == "Tarmac SL7"
+    assert result["brand_name"] == "Specialized"
+    assert result["distance_km"] == 3254.76
+    assert result["weight_kg"] == 7.2
+    mock.assert_called_once_with("b12345")
+
+
+def test_get_gear_tool_missing_id():
+    from tools.gear import get_gear_tool
+
+    with pytest.raises(ValueError, match="gear_id is required"):
+        get_gear_tool({})

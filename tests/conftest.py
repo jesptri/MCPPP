@@ -154,6 +154,18 @@ MOCK_SEGMENTS_RESPONSE = {
     ]
 }
 
+MOCK_GEAR = {
+    "id": "b12345",
+    "name": "Tarmac SL7",
+    "primary": True,
+    "brand_name": "Specialized",
+    "model_name": "Tarmac SL7",
+    "description": "Race bike",
+    "distance": 3254761,
+    "frame_type": 3,
+    "weight": 7.2,
+}
+
 MOCK_TOKEN_RESPONSE = {
     "access_token": "new_access_token_123",
     "refresh_token": "new_refresh_token_456",

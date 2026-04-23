@@ -11,6 +11,7 @@ from tools.laps import get_activity_laps_tool, TOOL_DEFINITION as LAPS_TOOL_DEF
 from tools.zones import get_activity_zones_tool, TOOL_DEFINITION as ZONES_TOOL_DEF
 from tools.clubs import get_athlete_clubs_tool, TOOL_DEFINITION as CLUBS_TOOL_DEF
 from tools.segments import explore_segments_tool, TOOL_DEFINITION as SEGMENTS_TOOL_DEF
+from tools.gear import get_gear_tool, TOOL_DEFINITION as GEAR_TOOL_DEF
 from services.strava import get_authorize_url, exchange_code
 from resources.athlete import RESOURCE_DEFINITION as ATHLETE_RESOURCE, read_athlete_profile
 from resources.activity import RESOURCE_TEMPLATE as ACTIVITY_TEMPLATE, read_activity
@@ -65,6 +66,10 @@ TOOLS = {
     "explore_segments": {
         "definition": SEGMENTS_TOOL_DEF,
         "handler": explore_segments_tool
+    },
+    "get_gear": {
+        "definition": GEAR_TOOL_DEF,
+        "handler": get_gear_tool
     },
 }
 

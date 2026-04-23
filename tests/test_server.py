@@ -93,7 +93,8 @@ async def test_rpc_tools_list():
     assert "get_activity_zones" in tool_names
     assert "get_athlete_clubs" in tool_names
     assert "explore_segments" in tool_names
-    assert len(tools) == 6
+    assert "get_gear" in tool_names
+    assert len(tools) == 7
 
 
 # ── JSON-RPC: tools/call ──
@@ -268,7 +269,7 @@ async def test_rest_get_tools():
         resp = await client.get("/tools")
     data = resp.json()
     assert "tools" in data
-    assert len(data["tools"]) == 6
+    assert len(data["tools"]) == 7
 
 
 @pytest.mark.anyio
