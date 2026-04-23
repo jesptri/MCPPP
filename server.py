@@ -1,10 +1,12 @@
 import re
 
 from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from tools.activities import list_activities_tool, TOOL_DEFINITION
+from services.strava import get_authorize_url, exchange_code
 from resources.athlete import RESOURCE_DEFINITION as ATHLETE_RESOURCE, read_athlete_profile
 from resources.activity import RESOURCE_TEMPLATE as ACTIVITY_TEMPLATE, read_activity
 from prompts.weekly_summary import (
@@ -94,6 +96,41 @@ def server_card_tools():
 @app.get("/")
 def root_get():
     return {"protocol": "mcp", "version": "1.0", "status": "ok"}
+
+
+# ── OAuth Authorization Flow ──
+# 1. Visit /auth         → redirects to Strava with correct scopes
+# 2. User approves       → Strava redirects to /auth/callback?code=...
+# 3. Server exchanges code for tokens and persists them
+
+@app.get("/auth")
+def auth_redirect(request: Request):
+    """Redirect to Strava OAuth with the required scopes."""
+    callback_url = str(request.url_for("auth_callback"))
+    return RedirectResponse(get_authorize_url(callback_url))
+
+
+@app.get("/auth/callback")
+def auth_callback(code: str = "", error: str = ""):
+    """Handle the OAuth callback from Strava."""
+    if error:
+        return HTMLResponse(f"<h2>Authorization denied</h2><p>{error}</p>", status_code=400)
+
+    if not code:
+        return HTMLResponse("<h2>Missing authorization code</h2>", status_code=400)
+
+    try:
+        data = exchange_code(code)
+        athlete = data.get("athlete", {})
+        name = f"{athlete.get('firstname', '')} {athlete.get('lastname', '')}".strip()
+        return HTMLResponse(
+            f"<h2>Authorization successful</h2>"
+            f"<p>Athlete: {name or 'OK'}</p>"
+            f"<p>Scopes granted. Tokens saved to .env.</p>"
+            f"<p>You can close this page and use the MCP server.</p>"
+        )
+    except Exception as e:
+        return HTMLResponse(f"<h2>Token exchange failed</h2><pre>{e}</pre>", status_code=500)
 
 
 @app.post("/")
