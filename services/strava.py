@@ -172,6 +172,17 @@ def get_athlete_clubs(per_page: int = 30):
     return response.json()
 
 
+def get_gear(gear_id: str):
+    """Fetch equipment details by gear ID (e.g. 'b12345' for a bike)."""
+    url = f"{BASE_URL}/gear/{gear_id}"
+    response = requests.get(url, headers=_headers())
+
+    if response.status_code != 200:
+        raise Exception(f"Strava API error: {response.text}")
+
+    return response.json()
+
+
 def explore_segments(bounds: str, activity_type: str = "riding"):
     """Explore segments in a geographic area.
 
