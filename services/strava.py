@@ -1,15 +1,99 @@
 import os
+import time
 import requests
-from dotenv import load_dotenv
+from dotenv import load_dotenv, set_key
 
-load_dotenv()
+ENV_PATH = os.path.join(os.path.dirname(__file__), "..", ".env")
+load_dotenv(ENV_PATH)
 
-STRAVA_TOKEN = os.getenv("STRAVA_ACCESS_TOKEN")
 BASE_URL = "https://www.strava.com/api/v3"
+TOKEN_URL = "https://www.strava.com/oauth/token"
+
+
+# Scopes needed for this MCP server
+STRAVA_SCOPES = "read,activity:read_all,profile:read_all"
+AUTHORIZE_URL = "https://www.strava.com/oauth/authorize"
+
+_token_store = {
+    "access_token": os.getenv("STRAVA_ACCESS_TOKEN", ""),
+    "refresh_token": os.getenv("STRAVA_REFRESH_TOKEN", ""),
+    "expires_at": int(os.getenv("STRAVA_EXPIRES_AT", "0")),
+    "client_id": os.getenv("STRAVA_CLIENT_ID", ""),
+    "client_secret": os.getenv("STRAVA_CLIENT_SECRET", ""),
+}
+
+
+def _refresh_token():
+    """Exchange the refresh token for a new access token via Strava OAuth."""
+    response = requests.post(TOKEN_URL, data={
+        "client_id": _token_store["client_id"],
+        "client_secret": _token_store["client_secret"],
+        "grant_type": "refresh_token",
+        "refresh_token": _token_store["refresh_token"],
+    })
+
+    if response.status_code != 200:
+        raise Exception(f"Token refresh failed: {response.text}")
+
+    data = response.json()
+    _token_store["access_token"] = data["access_token"]
+    _token_store["refresh_token"] = data["refresh_token"]
+    _token_store["expires_at"] = data["expires_at"]
+
+    # Persist to .env so tokens survive restarts
+    abs_env = os.path.abspath(ENV_PATH)
+    set_key(abs_env, "STRAVA_ACCESS_TOKEN", data["access_token"])
+    set_key(abs_env, "STRAVA_REFRESH_TOKEN", data["refresh_token"])
+    set_key(abs_env, "STRAVA_EXPIRES_AT", str(data["expires_at"]))
+
+
+def _get_access_token():
+    """Return a valid access token, refreshing if expired."""
+    # Refresh 60s before actual expiry to avoid race conditions
+    if time.time() >= (_token_store["expires_at"] - 60):
+        _refresh_token()
+    return _token_store["access_token"]
+
+
+def get_authorize_url(redirect_uri: str) -> str:
+    """Build the Strava OAuth authorization URL with required scopes."""
+    return (
+        f"{AUTHORIZE_URL}"
+        f"?client_id={_token_store['client_id']}"
+        f"&response_type=code"
+        f"&redirect_uri={redirect_uri}"
+        f"&scope={STRAVA_SCOPES}"
+        f"&approval_prompt=force"
+    )
+
+
+def exchange_code(code: str):
+    """Exchange an authorization code for tokens and persist them."""
+    response = requests.post(TOKEN_URL, data={
+        "client_id": _token_store["client_id"],
+        "client_secret": _token_store["client_secret"],
+        "code": code,
+        "grant_type": "authorization_code",
+    })
+
+    if response.status_code != 200:
+        raise Exception(f"Code exchange failed: {response.text}")
+
+    data = response.json()
+    _token_store["access_token"] = data["access_token"]
+    _token_store["refresh_token"] = data["refresh_token"]
+    _token_store["expires_at"] = data["expires_at"]
+
+    abs_env = os.path.abspath(ENV_PATH)
+    set_key(abs_env, "STRAVA_ACCESS_TOKEN", data["access_token"])
+    set_key(abs_env, "STRAVA_REFRESH_TOKEN", data["refresh_token"])
+    set_key(abs_env, "STRAVA_EXPIRES_AT", str(data["expires_at"]))
+
+    return data
 
 
 def _headers():
-    return {"Authorization": f"Bearer {STRAVA_TOKEN}"}
+    return {"Authorization": f"Bearer {_get_access_token()}"}
 
 
 def get_activities(per_page: int = 5):
