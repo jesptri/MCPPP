@@ -126,3 +126,66 @@ def get_activity(activity_id: int):
         raise Exception(f"Strava API error: {response.text}")
 
     return response.json()
+
+
+def get_athlete_stats(athlete_id: int):
+    """Fetch all-time, YTD, and recent activity stats for an athlete."""
+    url = f"{BASE_URL}/athletes/{athlete_id}/stats"
+    response = requests.get(url, headers=_headers())
+
+    if response.status_code != 200:
+        raise Exception(f"Strava API error: {response.text}")
+
+    return response.json()
+
+
+def get_activity_laps(activity_id: int):
+    """Fetch laps for an activity."""
+    url = f"{BASE_URL}/activities/{activity_id}/laps"
+    response = requests.get(url, headers=_headers())
+
+    if response.status_code != 200:
+        raise Exception(f"Strava API error: {response.text}")
+
+    return response.json()
+
+
+def get_activity_zones(activity_id: int):
+    """Fetch HR/power zone distribution for an activity."""
+    url = f"{BASE_URL}/activities/{activity_id}/zones"
+    response = requests.get(url, headers=_headers())
+
+    if response.status_code != 200:
+        raise Exception(f"Strava API error: {response.text}")
+
+    return response.json()
+
+
+def get_athlete_clubs(per_page: int = 30):
+    """Fetch clubs the authenticated athlete belongs to."""
+    url = f"{BASE_URL}/athlete/clubs"
+    response = requests.get(url, headers=_headers(), params={"per_page": per_page})
+
+    if response.status_code != 200:
+        raise Exception(f"Strava API error: {response.text}")
+
+    return response.json()
+
+
+def explore_segments(bounds: str, activity_type: str = "riding"):
+    """Explore segments in a geographic area.
+
+    Args:
+        bounds: comma-separated: south_lat,west_lng,north_lat,east_lng
+        activity_type: 'riding' or 'running'
+    """
+    url = f"{BASE_URL}/segments/explore"
+    response = requests.get(url, headers=_headers(), params={
+        "bounds": bounds,
+        "activity_type": activity_type,
+    })
+
+    if response.status_code != 200:
+        raise Exception(f"Strava API error: {response.text}")
+
+    return response.json()

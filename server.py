@@ -6,6 +6,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from tools.activities import list_activities_tool, TOOL_DEFINITION
+from tools.stats import get_athlete_stats_tool, TOOL_DEFINITION as STATS_TOOL_DEF
+from tools.laps import get_activity_laps_tool, TOOL_DEFINITION as LAPS_TOOL_DEF
+from tools.zones import get_activity_zones_tool, TOOL_DEFINITION as ZONES_TOOL_DEF
+from tools.clubs import get_athlete_clubs_tool, TOOL_DEFINITION as CLUBS_TOOL_DEF
+from tools.segments import explore_segments_tool, TOOL_DEFINITION as SEGMENTS_TOOL_DEF
 from services.strava import get_authorize_url, exchange_code
 from resources.athlete import RESOURCE_DEFINITION as ATHLETE_RESOURCE, read_athlete_profile
 from resources.activity import RESOURCE_TEMPLATE as ACTIVITY_TEMPLATE, read_activity
@@ -40,7 +45,27 @@ TOOLS = {
     "list_activities": {
         "definition": TOOL_DEFINITION,
         "handler": list_activities_tool
-    }
+    },
+    "get_athlete_stats": {
+        "definition": STATS_TOOL_DEF,
+        "handler": get_athlete_stats_tool
+    },
+    "get_activity_laps": {
+        "definition": LAPS_TOOL_DEF,
+        "handler": get_activity_laps_tool
+    },
+    "get_activity_zones": {
+        "definition": ZONES_TOOL_DEF,
+        "handler": get_activity_zones_tool
+    },
+    "get_athlete_clubs": {
+        "definition": CLUBS_TOOL_DEF,
+        "handler": get_athlete_clubs_tool
+    },
+    "explore_segments": {
+        "definition": SEGMENTS_TOOL_DEF,
+        "handler": explore_segments_tool
+    },
 }
 
 # --- Resources ---
