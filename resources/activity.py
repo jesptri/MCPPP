@@ -29,6 +29,7 @@ def read_activity(activity_id: int):
         "start_date": a.get("start_date_local"),
         "description": a.get("description"),
         "kudos_count": a.get("kudos_count"),
+        "gear_id": a.get("gear_id"),
     }
     return {
         "uri": f"strava://activities/{activity_id}",

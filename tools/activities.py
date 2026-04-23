@@ -11,7 +11,8 @@ def list_activities_tool(input_data: dict):
             "type": a.get("type", "Unknown"),
             "distance_km": round(a["distance"] / 1000, 2),
             "moving_time_min": round(a["moving_time"] / 60, 1),
-            "date": a["start_date_local"][:10]
+            "date": a["start_date_local"][:10],
+            "gear_id": a.get("gear_id"),
         }
         for a in activities
     ]

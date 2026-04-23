@@ -23,6 +23,14 @@ def read_athlete_profile():
         "profile_picture": athlete.get("profile"),
         "follower_count": athlete.get("follower_count"),
         "friend_count": athlete.get("friend_count"),
+        "bikes": [
+            {"id": b["id"], "name": b["name"], "distance_km": round(b.get("distance", 0) / 1000, 2)}
+            for b in athlete.get("bikes", [])
+        ],
+        "shoes": [
+            {"id": s["id"], "name": s["name"], "distance_km": round(s.get("distance", 0) / 1000, 2)}
+            for s in athlete.get("shoes", [])
+        ],
     }
     return {
         "uri": RESOURCE_DEFINITION["uri"],

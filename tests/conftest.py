@@ -19,6 +19,12 @@ MOCK_ATHLETE = {
     "profile": "https://example.com/pic.jpg",
     "follower_count": 42,
     "friend_count": 15, # I've no friend as I'm too fast
+    "bikes": [
+        {"id": "b12345", "name": "Tarmac SL7", "distance": 3254761},
+    ],
+    "shoes": [
+        {"id": "g67890", "name": "Adidas Ultra", "distance": 490400},
+    ],
 }
 
 MOCK_ACTIVITY = {
@@ -38,6 +44,7 @@ MOCK_ACTIVITY = {
     "start_date_local": "2024-06-15T07:30:00Z",
     "description": "Easy tempo run",
     "kudos_count": 5,
+    "gear_id": "b12345",
 }
 
 MOCK_ACTIVITIES = [
@@ -48,6 +55,7 @@ MOCK_ACTIVITIES = [
         "moving_time": 3120,
         "start_date_local": "2024-06-15T07:30:00Z",
         "total_elevation_gain": 85,
+        "gear_id": "g67890",
     },
     {
         "name": "Evening Ride",
@@ -56,6 +64,7 @@ MOCK_ACTIVITIES = [
         "moving_time": 5400,
         "start_date_local": "2024-06-14T18:00:00Z",
         "total_elevation_gain": 320,
+        "gear_id": "b12345",
     },
 ]
 

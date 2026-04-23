@@ -29,7 +29,9 @@ def test_list_activities_tool(mock):
     assert result[0]["distance_km"] == 10.23
     assert result[0]["moving_time_min"] == 52.0
     assert result[0]["date"] == "2024-06-15"
+    assert result[0]["gear_id"] == "g67890"
     assert result[1]["type"] == "Ride"
+    assert result[1]["gear_id"] == "b12345"
 
 
 @patch("tools.activities.get_activities", return_value=MOCK_ACTIVITIES)

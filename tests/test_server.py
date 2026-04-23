@@ -165,6 +165,11 @@ async def test_rpc_resources_read_athlete(mock):
     contents = data["result"]["contents"]
     assert len(contents) == 1
     assert contents[0]["uri"] == "strava://athlete/profile"
+    import json
+    profile = json.loads(contents[0]["text"])
+    assert len(profile["bikes"]) == 1
+    assert profile["bikes"][0]["id"] == "b12345"
+    assert len(profile["shoes"]) == 1
 
 
 @pytest.mark.anyio
@@ -178,6 +183,9 @@ async def test_rpc_resources_read_activity(mock):
     data = resp.json()
     assert "result" in data
     assert data["result"]["contents"][0]["uri"] == "strava://activities/99001"
+    import json
+    detail = json.loads(data["result"]["contents"][0]["text"])
+    assert detail["gear_id"] == "b12345"
 
 
 @pytest.mark.anyio
