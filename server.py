@@ -1,8 +1,11 @@
 import re
+import logging
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+
+logger = logging.getLogger("meteofrance-mcp")
 
 from tools.search_places import search_places_tool, TOOL_DEFINITION as PLACES_TOOL_DEF
 from tools.forecast import get_forecast_tool, TOOL_DEFINITION as FORECAST_TOOL_DEF
@@ -69,6 +72,27 @@ PROMPTS = {
 }
 
 
+# ---------------------------------------------------------------------------
+# MCP Apps capability (SEP-1865) — session state
+# ---------------------------------------------------------------------------
+
+MCP_APP_MIME = "text/html;profile=mcp-app"
+UI_EXTENSION_ID = "io.modelcontextprotocol/ui"
+
+# Module-level flag: set to True after a client negotiates UI support.
+# (Sufficient for single-client / demo usage. For multi-client production
+# use, this should be stored per-session.)
+_client_supports_ui: bool = False
+
+
+def _check_client_ui_support(client_capabilities: dict) -> bool:
+    """Return True if the client advertises MCP Apps support for HTML."""
+    extensions = client_capabilities.get("extensions", {})
+    ui_ext = extensions.get(UI_EXTENSION_ID, {})
+    mime_types = ui_ext.get("mimeTypes", [])
+    return MCP_APP_MIME in mime_types
+
+
 # ===================================================================
 # MCP Endpoints
 # ===================================================================
@@ -102,16 +126,34 @@ async def rpc_handler(request: Request):
     req_id = body.get("id")
 
     if method == "initialize":
+        global _client_supports_ui
+        client_params = body.get("params", {})
+        client_caps = client_params.get("capabilities", {})
+        _client_supports_ui = _check_client_ui_support(client_caps)
+        logger.info(
+            "initialize: client=%s, ui_support=%s",
+            client_params.get("clientInfo", {}).get("name", "unknown"),
+            _client_supports_ui,
+        )
+
+        server_caps = {
+            "tools": {},
+            "resources": {},
+            "prompts": {},
+        }
+        if _client_supports_ui:
+            server_caps["extensions"] = {
+                UI_EXTENSION_ID: {
+                    "mimeTypes": [MCP_APP_MIME],
+                },
+            }
+
         return {
             "jsonrpc": "2.0",
             "id": req_id,
             "result": {
                 "protocolVersion": "2024-11-05",
-                "capabilities": {
-                    "tools": {},
-                    "resources": {},
-                    "prompts": {},
-                },
+                "capabilities": server_caps,
                 "serverInfo": {"name": "meteofrance-mcp", "version": "1.0"},
             },
         }
