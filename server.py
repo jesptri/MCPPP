@@ -14,6 +14,11 @@ from tools.rain import get_rain_tool, TOOL_DEFINITION as RAIN_TOOL_DEF
 from tools.warnings import get_warnings_tool, TOOL_DEFINITION as WARN_TOOL_DEF
 from resources.alerts import RESOURCE_DEFINITION as ALERTS_RESOURCE, read_alerts
 from resources.forecast import RESOURCE_TEMPLATE as FORECAST_TEMPLATE, read_forecast
+from resources.forecast_ui import (
+    UI_RESOURCE_URI,
+    UI_RESOURCE_DEFINITION,
+    read_forecast_ui,
+)
 from prompts.weather_report import (
     PROMPT_DEFINITION as WEATHER_PROMPT,
     get_weather_report_messages,
@@ -60,6 +65,8 @@ FORECAST_URI_PATTERN = re.compile(
 def resolve_resource(uri: str):
     if uri == ALERTS_RESOURCE["uri"]:
         return read_alerts()
+    if uri == UI_RESOURCE_URI:
+        return read_forecast_ui()
     match = FORECAST_URI_PATTERN.match(uri)
     if match:
         return read_forecast(float(match.group(1)), float(match.group(2)))
