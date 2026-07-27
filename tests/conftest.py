@@ -1,199 +1,156 @@
-"""Shared fixtures and mock data for all tests."""
-import time
+"""Shared fixtures and mock data for all Meteo-France MCP tests."""
+
 import pytest
 
 
 # ---------------------------------------------------------------------------
-# Strava API mock responses — realistic payloads matching the real API
+# Meteo-France API mock responses -- realistic payloads
 # ---------------------------------------------------------------------------
-# Of course fake data
 
-MOCK_ATHLETE = {
-    "id": 123456,
-    "firstname": "Jules",
-    "lastname": "E",
-    "city": "Paris",
-    "country": "France",
-    "sex": "M",
-    "weight": 72.0,
-    "profile": "https://example.com/pic.jpg",
-    "follower_count": 42,
-    "friend_count": 15, # I've no friend as I'm too fast
-    "bikes": [
-        {"id": "b12345", "name": "Tarmac SL7", "distance": 3254761},
-    ],
-    "shoes": [
-        {"id": "g67890", "name": "Adidas Ultra", "distance": 490400},
-    ],
-}
-
-MOCK_ACTIVITY = {
-    "id": 99001,
-    "name": "Morning Run",
-    "type": "Run",
-    "sport_type": "Run",
-    "distance": 10234.5,
-    "moving_time": 3120,
-    "elapsed_time": 3300,
-    "total_elevation_gain": 85.0,
-    "average_speed": 3.28,
-    "max_speed": 4.5,
-    "average_heartrate": 155,
-    "max_heartrate": 178,
-    "calories": 620,
-    "start_date_local": "2024-06-15T07:30:00Z",
-    "description": "Easy tempo run",
-    "kudos_count": 5,
-    "gear_id": "b12345",
-}
-
-MOCK_ACTIVITIES = [
+MOCK_PLACES = [
     {
-        "name": "Morning Run",
-        "type": "Run",
-        "distance": 10234.5,
-        "moving_time": 3120,
-        "start_date_local": "2024-06-15T07:30:00Z",
-        "total_elevation_gain": 85,
-        "gear_id": "g67890",
+        "name": "Paris",
+        "latitude": 48.8566,
+        "longitude": 2.3522,
+        "country": "FR",
+        "admin": "Ile-de-France",
+        "admin2": "75",
+        "postal_code": "75001",
+        "insee": "75056",
     },
     {
-        "name": "Evening Ride",
-        "type": "Ride",
-        "distance": 42000.0,
-        "moving_time": 5400,
-        "start_date_local": "2024-06-14T18:00:00Z",
-        "total_elevation_gain": 320,
-        "gear_id": "b12345",
+        "name": "Paris-Charles de Gaulle",
+        "latitude": 49.0097,
+        "longitude": 2.5479,
+        "country": "FR",
+        "admin": "Ile-de-France",
+        "admin2": "95",
+        "postal_code": "95700",
+        "insee": "95527",
     },
 ]
 
-MOCK_STATS = {
-    "biggest_ride_distance": 120000.0,
-    "biggest_climb_elevation_gain": 1500.0,
-    "recent_ride_totals": {
-        "count": 3,
-        "distance": 95000.0,
-        "moving_time": 14400,
-        "elevation_gain": 800.0,
+MOCK_FORECAST = {
+    "position": {
+        "lat": 48.8566,
+        "lon": 2.3522,
+        "alti": 35,
+        "name": "Paris",
+        "country": "FR",
+        "timezone": "Europe/Paris",
     },
-    "recent_run_totals": {
-        "count": 2,
-        "distance": 18000.0,
-        "moving_time": 6000,
-        "elevation_gain": 150.0,
+    "updated_on": 1700000000,
+    "today": {
+        "dt": 1700000000,
+        "T": {"min": 8.0, "max": 15.0},
+        "humidity": {"min": 55, "max": 85},
+        "weather12H": {"icon": "p3j", "desc": "Cloudy"},
     },
-    "recent_swim_totals": {"count": 0, "distance": 0, "moving_time": 0, "elevation_gain": 0},
-    "ytd_ride_totals": {"count": 50, "distance": 2000000, "moving_time": 360000, "elevation_gain": 15000},
-    "ytd_run_totals": {"count": 30, "distance": 300000, "moving_time": 108000, "elevation_gain": 3000},
-    "ytd_swim_totals": {"count": 0, "distance": 0, "moving_time": 0, "elevation_gain": 0},
-    "all_ride_totals": {"count": 200, "distance": 8000000, "moving_time": 1440000, "elevation_gain": 60000},
-    "all_run_totals": {"count": 100, "distance": 1000000, "moving_time": 360000, "elevation_gain": 10000},
-    "all_swim_totals": {"count": 5, "distance": 10000, "moving_time": 7200, "elevation_gain": 0},
-}
-
-MOCK_LAPS = [
-    {
-        "lap_index": 1,
-        "name": "Lap 1",
-        "distance": 5000.0,
-        "moving_time": 1500,
-        "elapsed_time": 1550,
-        "total_elevation_gain": 40,
-        "average_speed": 3.33,
-        "max_speed": 4.2,
-        "average_watts": 220,
-        "average_cadence": 85,
-    },
-    {
-        "lap_index": 2,
-        "name": "Lap 2",
-        "distance": 5234.5,
-        "moving_time": 1620,
-        "elapsed_time": 1700,
-        "total_elevation_gain": 45,
-        "average_speed": 3.23,
-        "max_speed": 4.0,
-        "average_watts": 210,
-        "average_cadence": 82,
-    },
-]
-
-MOCK_ZONES = [
-    {
-        "type": "heartrate",
-        "sensor_based": True,
-        "points": 6,
-        "distribution_buckets": [
-            {"min": 0, "max": 120, "time": 300},
-            {"min": 120, "max": 150, "time": 1200},
-            {"min": 150, "max": 170, "time": 900},
-            {"min": 170, "max": 190, "time": 600},
-            {"min": 190, "max": -1, "time": 120},
-        ],
-    }
-]
-
-MOCK_CLUBS = [
-    {
-        "id": 1001,
-        "name": "Paris Runners",
-        "sport_type": "running",
-        "city": "Paris",
-        "state": "IDF",
-        "country": "France",
-        "member_count": 250,
-        "private": False,
-        "url": "paris-runners",
-    }
-]
-
-MOCK_SEGMENTS_RESPONSE = {
-    "segments": [
+    "daily": [
         {
-            "id": 5001,
-            "name": "Champs-Elysees Sprint",
-            "climb_category": 0,
-            "avg_grade": 0.5,
-            "distance": 2100.0,
-            "elev_difference": 10.5,
-            "start_latlng": [48.8698, 2.3076],
-            "end_latlng": [48.8738, 2.2950],
+            "dt": 1700000000,
+            "T": {"min": 8.0, "max": 15.0},
+            "humidity": {"min": 55, "max": 85},
+        },
+        {
+            "dt": 1700086400,
+            "T": {"min": 7.0, "max": 14.0},
+            "humidity": {"min": 60, "max": 90},
+        },
+    ],
+    "hourly": [
+        {
+            "dt": 1700000000,
+            "T": {"value": 12.5},
+            "wind": {"speed": 15, "direction": 220},
+            "weather": {"icon": "p3j", "desc": "Cloudy"},
         }
-    ]
+    ],
+    "probability": [],
 }
 
-MOCK_GEAR = {
-    "id": "b12345",
-    "name": "Tarmac SL7",
-    "primary": True,
-    "brand_name": "Specialized",
-    "model_name": "Tarmac SL7",
-    "description": "Race bike",
-    "distance": 3254761,
-    "frame_type": 3,
-    "weight": 7.2,
+MOCK_OBSERVATION = {
+    "timezone": "Europe/Paris",
+    "time": "2024-11-14T14:00:00",
+    "temperature_c": 12.5,
+    "wind_speed_kmh": 15.0,
+    "wind_direction_deg": 220,
+    "weather_description": "Cloudy",
+    "weather_icon": "p3j",
 }
 
-MOCK_TOKEN_RESPONSE = {
-    "access_token": "new_access_token_123",
-    "refresh_token": "new_refresh_token_456",
-    "expires_at": int(time.time()) + 21600,
-    "athlete": {"firstname": "Jules", "lastname": "E"},
+MOCK_RAIN = {
+    "position": {"lat": 48.8566, "lon": 2.3522, "name": "Paris"},
+    "updated_on": 1700000000,
+    "forecast": [
+        {"dt": 1700000000, "rain": 1, "desc": "Dry weather"},
+        {"dt": 1700000600, "rain": 1, "desc": "Dry weather"},
+    ],
+    "quality": 0,
+    "next_rain": None,
+}
+
+MOCK_WARNINGS = {
+    "domain": "france",
+    "update_time": 1700000000,
+    "end_validity_time": 1700086400,
+    "max_color": 2,
+    "max_color_name": "Yellow",
+    "phenomenons": [
+        {
+            "phenomenon_id": 1,
+            "phenomenon_name": "Wind",
+            "color": 2,
+            "color_name": "Yellow",
+        },
+        {
+            "phenomenon_id": 3,
+            "phenomenon_name": "Thunderstorms",
+            "color": 1,
+            "color_name": "Green",
+        },
+    ],
 }
 
 
 # ---------------------------------------------------------------------------
-# Helper to build a mock requests.Response
+# Place-like object used for search_places mocking
 # ---------------------------------------------------------------------------
 
-class MockResponse:
-    """Minimal mock for requests.Response."""
+class MockPlace:
+    """Mimics meteofrance_api.model.Place for unit tests."""
 
-    def __init__(self, json_data, status_code=200):
-        self._json = json_data
-        self.status_code = status_code
-        self.text = str(json_data)
+    def __init__(self, data: dict):
+        self._data = data
 
-    def json(self):
-        return self._json
+    @property
+    def name(self):
+        return self._data["name"]
+
+    @property
+    def latitude(self):
+        return self._data["latitude"]
+
+    @property
+    def longitude(self):
+        return self._data["longitude"]
+
+    @property
+    def country(self):
+        return self._data["country"]
+
+    @property
+    def admin(self):
+        return self._data.get("admin")
+
+    @property
+    def admin2(self):
+        return self._data.get("admin2")
+
+    @property
+    def postal_code(self):
+        return self._data.get("postal_code")
+
+    @property
+    def insee(self):
+        return self._data.get("insee")

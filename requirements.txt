@@ -1,7 +1,7 @@
 fastapi
 uvicorn
-requests
-python-dotenv
+meteofrance-api
 starlette
 pytest
 httpx
+anyio

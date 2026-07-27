@@ -1,24 +1,16 @@
-"""Integration tests for the FastAPI MCP server — JSON-RPC endpoints."""
-import time
+"""Integration tests for the FastAPI MCP server -- JSON-RPC endpoints."""
+import json
 from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient, ASGITransport
 
-from tests.conftest import MOCK_ACTIVITIES, MOCK_ATHLETE, MOCK_ACTIVITY
-
-
-# Patch token store before importing the app to avoid real API calls on import
-@pytest.fixture(autouse=True)
-def patch_token():
-    with patch("services.strava._token_store", {
-        "access_token": "test_token",
-        "refresh_token": "test_refresh",
-        "expires_at": int(time.time()) + 3600,
-        "client_id": "test_id",
-        "client_secret": "test_secret",
-    }):
-        yield
+from tests.conftest import (
+    MOCK_PLACES,
+    MOCK_FORECAST,
+    MOCK_OBSERVATION,
+    MOCK_WARNINGS,
+)
 
 
 def _rpc(method, params=None):
@@ -29,7 +21,7 @@ def _rpc(method, params=None):
     return body
 
 
-# ── Server card & discovery ──
+# -- Server card & discovery --
 
 @pytest.mark.anyio
 async def test_server_card():
@@ -38,7 +30,7 @@ async def test_server_card():
         resp = await client.get("/.well-known/mcp/server-card")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["name"] == "strava-mcp"
+    assert data["name"] == "meteofrance-mcp"
     assert data["capabilities"]["tools"] is True
     assert data["capabilities"]["resources"] is True
     assert data["capabilities"]["prompts"] is True
@@ -53,7 +45,7 @@ async def test_root_get():
     assert resp.json()["protocol"] == "mcp"
 
 
-# ── JSON-RPC: initialize ──
+# -- JSON-RPC: initialize --
 
 @pytest.mark.anyio
 async def test_rpc_initialize():
@@ -77,7 +69,7 @@ async def test_rpc_notifications_initialized():
     assert "result" in data
 
 
-# ── JSON-RPC: tools/list ──
+# -- JSON-RPC: tools/list --
 
 @pytest.mark.anyio
 async def test_rpc_tools_list():
@@ -87,26 +79,24 @@ async def test_rpc_tools_list():
     data = resp.json()
     tools = data["result"]["tools"]
     tool_names = [t["name"] for t in tools]
-    assert "list_activities" in tool_names
-    assert "get_athlete_stats" in tool_names
-    assert "get_activity_laps" in tool_names
-    assert "get_activity_zones" in tool_names
-    assert "get_athlete_clubs" in tool_names
-    assert "explore_segments" in tool_names
-    assert "get_gear" in tool_names
-    assert len(tools) == 7
+    assert "search_places" in tool_names
+    assert "get_forecast" in tool_names
+    assert "get_observation" in tool_names
+    assert "get_rain" in tool_names
+    assert "get_warnings" in tool_names
+    assert len(tools) == 5
 
 
-# ── JSON-RPC: tools/call ──
+# -- JSON-RPC: tools/call --
 
 @pytest.mark.anyio
-@patch("tools.activities.get_activities", return_value=MOCK_ACTIVITIES)
-async def test_rpc_tools_call_list_activities(mock):
+@patch("tools.search_places.search_places", return_value=MOCK_PLACES)
+async def test_rpc_tools_call_search_places(mock):
     from server import app
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.post("/", json=_rpc("tools/call", {
-            "name": "list_activities",
-            "arguments": {"per_page": 2}
+            "name": "search_places",
+            "arguments": {"query": "Paris"}
         }))
     data = resp.json()
     assert "result" in data
@@ -126,7 +116,7 @@ async def test_rpc_tools_call_unknown_tool():
     assert data["error"]["code"] == -32601
 
 
-# ── JSON-RPC: resources/list ──
+# -- JSON-RPC: resources/list --
 
 @pytest.mark.anyio
 async def test_rpc_resources_list():
@@ -136,7 +126,7 @@ async def test_rpc_resources_list():
     data = resp.json()
     resources = data["result"]["resources"]
     assert len(resources) >= 1
-    assert resources[0]["uri"] == "strava://athlete/profile"
+    assert resources[0]["uri"] == "meteofrance://alerts/france"
 
 
 @pytest.mark.anyio
@@ -147,45 +137,39 @@ async def test_rpc_resources_templates_list():
     data = resp.json()
     templates = data["result"]["resourceTemplates"]
     assert len(templates) >= 1
-    assert "activity_id" in templates[0]["uriTemplate"]
+    assert "latitude" in templates[0]["uriTemplate"]
 
 
-# ── JSON-RPC: resources/read ──
+# -- JSON-RPC: resources/read --
 
 @pytest.mark.anyio
-@patch("resources.athlete.get_athlete", return_value=MOCK_ATHLETE)
-async def test_rpc_resources_read_athlete(mock):
+@patch("resources.alerts.get_warnings", return_value=MOCK_WARNINGS)
+async def test_rpc_resources_read_alerts(mock):
     from server import app
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.post("/", json=_rpc("resources/read", {
-            "uri": "strava://athlete/profile"
+            "uri": "meteofrance://alerts/france"
         }))
     data = resp.json()
     assert "result" in data
     contents = data["result"]["contents"]
     assert len(contents) == 1
-    assert contents[0]["uri"] == "strava://athlete/profile"
-    import json
-    profile = json.loads(contents[0]["text"])
-    assert len(profile["bikes"]) == 1
-    assert profile["bikes"][0]["id"] == "b12345"
-    assert len(profile["shoes"]) == 1
+    assert contents[0]["uri"] == "meteofrance://alerts/france"
+    parsed = json.loads(contents[0]["text"])
+    assert parsed["domain"] == "france"
 
 
 @pytest.mark.anyio
-@patch("resources.activity.get_activity", return_value=MOCK_ACTIVITY)
-async def test_rpc_resources_read_activity(mock):
+@patch("resources.forecast.get_forecast", return_value=MOCK_FORECAST)
+async def test_rpc_resources_read_forecast(mock):
     from server import app
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.post("/", json=_rpc("resources/read", {
-            "uri": "strava://activities/99001"
+            "uri": "meteofrance://forecast/48.8566/2.3522"
         }))
     data = resp.json()
     assert "result" in data
-    assert data["result"]["contents"][0]["uri"] == "strava://activities/99001"
-    import json
-    detail = json.loads(data["result"]["contents"][0]["text"])
-    assert detail["gear_id"] == "b12345"
+    assert data["result"]["contents"][0]["uri"] == "meteofrance://forecast/48.8566/2.3522"
 
 
 @pytest.mark.anyio
@@ -193,14 +177,14 @@ async def test_rpc_resources_read_unknown_uri():
     from server import app
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.post("/", json=_rpc("resources/read", {
-            "uri": "strava://unknown/thing"
+            "uri": "meteofrance://unknown/thing"
         }))
     data = resp.json()
     assert "error" in data
     assert data["error"]["code"] == -32602
 
 
-# ── JSON-RPC: prompts/list ──
+# -- JSON-RPC: prompts/list --
 
 @pytest.mark.anyio
 async def test_rpc_prompts_list():
@@ -210,38 +194,25 @@ async def test_rpc_prompts_list():
     data = resp.json()
     prompts = data["result"]["prompts"]
     prompt_names = [p["name"] for p in prompts]
-    assert "weekly_summary" in prompt_names
-    assert "activity_analysis" in prompt_names
+    assert "weather_report" in prompt_names
+    assert "alert_analysis" in prompt_names
 
 
-# ── JSON-RPC: prompts/get ──
+# -- JSON-RPC: prompts/get --
 
 @pytest.mark.anyio
-@patch("prompts.weekly_summary.get_activities", return_value=MOCK_ACTIVITIES)
-async def test_rpc_prompts_get_weekly_summary(mock):
+@patch("prompts.alert_analysis.get_warnings", return_value=MOCK_WARNINGS)
+async def test_rpc_prompts_get_alert_analysis(mock):
     from server import app
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.post("/", json=_rpc("prompts/get", {
-            "name": "weekly_summary"
+            "name": "alert_analysis",
+            "arguments": {"domain": "france"}
         }))
     data = resp.json()
     assert "result" in data
     assert "messages" in data["result"]
     assert len(data["result"]["messages"]) >= 1
-
-
-@pytest.mark.anyio
-@patch("prompts.activity_analysis.get_activity", return_value=MOCK_ACTIVITY)
-async def test_rpc_prompts_get_activity_analysis(mock):
-    from server import app
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.post("/", json=_rpc("prompts/get", {
-            "name": "activity_analysis",
-            "arguments": {"activity_id": "99001"}
-        }))
-    data = resp.json()
-    assert "result" in data
-    assert "messages" in data["result"]
 
 
 @pytest.mark.anyio
@@ -256,7 +227,7 @@ async def test_rpc_prompts_get_unknown():
     assert data["error"]["code"] == -32602
 
 
-# ── JSON-RPC: unknown method ──
+# -- JSON-RPC: unknown method --
 
 @pytest.mark.anyio
 async def test_rpc_unknown_method():
@@ -268,7 +239,7 @@ async def test_rpc_unknown_method():
     assert data["error"]["code"] == -32601
 
 
-# ── REST convenience endpoints ──
+# -- REST convenience endpoints --
 
 @pytest.mark.anyio
 async def test_rest_get_tools():
@@ -277,17 +248,17 @@ async def test_rest_get_tools():
         resp = await client.get("/tools")
     data = resp.json()
     assert "tools" in data
-    assert len(data["tools"]) == 7
+    assert len(data["tools"]) == 5
 
 
 @pytest.mark.anyio
-@patch("tools.activities.get_activities", return_value=MOCK_ACTIVITIES)
+@patch("tools.search_places.search_places", return_value=MOCK_PLACES)
 async def test_rest_post_tools(mock):
     from server import app
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.post("/tools", json={
-            "tool_name": "list_activities",
-            "arguments": {"per_page": 2}
+            "tool_name": "search_places",
+            "arguments": {"query": "Paris"}
         })
     data = resp.json()
     assert "result" in data

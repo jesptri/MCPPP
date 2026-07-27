@@ -1,39 +1,31 @@
 import re
 
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
 
-from tools.activities import list_activities_tool, TOOL_DEFINITION
-from tools.stats import get_athlete_stats_tool, TOOL_DEFINITION as STATS_TOOL_DEF
-from tools.laps import get_activity_laps_tool, TOOL_DEFINITION as LAPS_TOOL_DEF
-from tools.zones import get_activity_zones_tool, TOOL_DEFINITION as ZONES_TOOL_DEF
-from tools.clubs import get_athlete_clubs_tool, TOOL_DEFINITION as CLUBS_TOOL_DEF
-from tools.segments import explore_segments_tool, TOOL_DEFINITION as SEGMENTS_TOOL_DEF
-from tools.gear import get_gear_tool, TOOL_DEFINITION as GEAR_TOOL_DEF
-from services.strava import get_authorize_url, exchange_code
-from resources.athlete import RESOURCE_DEFINITION as ATHLETE_RESOURCE, read_athlete_profile
-from resources.activity import RESOURCE_TEMPLATE as ACTIVITY_TEMPLATE, read_activity
-from prompts.weekly_summary import (
-    PROMPT_DEFINITION as WEEKLY_PROMPT,
-    get_weekly_summary_messages,
+from tools.search_places import search_places_tool, TOOL_DEFINITION as PLACES_TOOL_DEF
+from tools.forecast import get_forecast_tool, TOOL_DEFINITION as FORECAST_TOOL_DEF
+from tools.observation import get_observation_tool, TOOL_DEFINITION as OBS_TOOL_DEF
+from tools.rain import get_rain_tool, TOOL_DEFINITION as RAIN_TOOL_DEF
+from tools.warnings import get_warnings_tool, TOOL_DEFINITION as WARN_TOOL_DEF
+from resources.alerts import RESOURCE_DEFINITION as ALERTS_RESOURCE, read_alerts
+from resources.forecast import RESOURCE_TEMPLATE as FORECAST_TEMPLATE, read_forecast
+from prompts.weather_report import (
+    PROMPT_DEFINITION as WEATHER_PROMPT,
+    get_weather_report_messages,
 )
-from prompts.activity_analysis import (
-    PROMPT_DEFINITION as ACTIVITY_PROMPT,
-    get_activity_analysis_messages,
+from prompts.alert_analysis import (
+    PROMPT_DEFINITION as ALERT_PROMPT,
+    get_alert_analysis_messages,
 )
 
 
-class NgrokMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        response = await call_next(request)
-        response.headers["ngrok-skip-browser-warning"] = "true"
-        return response
-
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
 
 app = FastAPI(redirect_slashes=False)
-app.add_middleware(NgrokMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -42,79 +34,53 @@ app.add_middleware(
 )
 
 
+# ---------------------------------------------------------------------------
+# Tools / Resources / Prompts registries
+# ---------------------------------------------------------------------------
+
 TOOLS = {
-    "list_activities": {
-        "definition": TOOL_DEFINITION,
-        "handler": list_activities_tool
-    },
-    "get_athlete_stats": {
-        "definition": STATS_TOOL_DEF,
-        "handler": get_athlete_stats_tool
-    },
-    "get_activity_laps": {
-        "definition": LAPS_TOOL_DEF,
-        "handler": get_activity_laps_tool
-    },
-    "get_activity_zones": {
-        "definition": ZONES_TOOL_DEF,
-        "handler": get_activity_zones_tool
-    },
-    "get_athlete_clubs": {
-        "definition": CLUBS_TOOL_DEF,
-        "handler": get_athlete_clubs_tool
-    },
-    "explore_segments": {
-        "definition": SEGMENTS_TOOL_DEF,
-        "handler": explore_segments_tool
-    },
-    "get_gear": {
-        "definition": GEAR_TOOL_DEF,
-        "handler": get_gear_tool
-    },
+    "search_places": {"definition": PLACES_TOOL_DEF, "handler": search_places_tool},
+    "get_forecast": {"definition": FORECAST_TOOL_DEF, "handler": get_forecast_tool},
+    "get_observation": {"definition": OBS_TOOL_DEF, "handler": get_observation_tool},
+    "get_rain": {"definition": RAIN_TOOL_DEF, "handler": get_rain_tool},
+    "get_warnings": {"definition": WARN_TOOL_DEF, "handler": get_warnings_tool},
 }
 
-# --- Resources ---
-# Static resources have a fixed URI; templates have a uriTemplate with placeholders.
-RESOURCES = [ATHLETE_RESOURCE]
-RESOURCE_TEMPLATES = [ACTIVITY_TEMPLATE]
+RESOURCES = [ALERTS_RESOURCE]
+RESOURCE_TEMPLATES = [FORECAST_TEMPLATE]
 
-# URI pattern for matching strava://activities/{id}
-ACTIVITY_URI_PATTERN = re.compile(r"^strava://activities/(\d+)$")
+FORECAST_URI_PATTERN = re.compile(
+    r"^meteofrance://forecast/([-\d.]+)/([-\d.]+)$"
+)
 
 
 def resolve_resource(uri: str):
-    """Route a resource URI to the correct handler."""
-    if uri == ATHLETE_RESOURCE["uri"]:
-        return read_athlete_profile()
-
-    match = ACTIVITY_URI_PATTERN.match(uri)
+    if uri == ALERTS_RESOURCE["uri"]:
+        return read_alerts()
+    match = FORECAST_URI_PATTERN.match(uri)
     if match:
-        return read_activity(int(match.group(1)))
-
+        return read_forecast(float(match.group(1)), float(match.group(2)))
     return None
 
 
-# --- Prompts ---
 PROMPTS = {
-    "weekly_summary": {
-        "definition": WEEKLY_PROMPT,
-        "handler": get_weekly_summary_messages,
-    },
-    "activity_analysis": {
-        "definition": ACTIVITY_PROMPT,
-        "handler": get_activity_analysis_messages,
-    },
+    "weather_report": {"definition": WEATHER_PROMPT, "handler": get_weather_report_messages},
+    "alert_analysis": {"definition": ALERT_PROMPT, "handler": get_alert_analysis_messages},
 }
 
+
+# ===================================================================
+# MCP Endpoints
+# ===================================================================
 
 @app.get("/.well-known/mcp/server-card")
 @app.get("/.well-known/mcp/server-card/")
 def server_card():
     return {
-        "name": "strava-mcp",
+        "name": "meteofrance-mcp",
         "version": "1.0",
-        "description": "Serveur MCP pour accéder aux données Strava",
-        "capabilities": { "tools": True, "resources": True, "prompts": True }
+        "description": "MCP server for accessing Meteo-France weather data",
+        "capabilities": {"tools": True, "resources": True, "prompts": True},
     }
 
 
@@ -126,41 +92,6 @@ def server_card_tools():
 @app.get("/")
 def root_get():
     return {"protocol": "mcp", "version": "1.0", "status": "ok"}
-
-
-# ── OAuth Authorization Flow ──
-# 1. Visit /auth         → redirects to Strava with correct scopes
-# 2. User approves       → Strava redirects to /auth/callback?code=...
-# 3. Server exchanges code for tokens and persists them
-
-@app.get("/auth")
-def auth_redirect(request: Request):
-    """Redirect to Strava OAuth with the required scopes."""
-    callback_url = str(request.url_for("auth_callback"))
-    return RedirectResponse(get_authorize_url(callback_url))
-
-
-@app.get("/auth/callback")
-def auth_callback(code: str = "", error: str = ""):
-    """Handle the OAuth callback from Strava."""
-    if error:
-        return HTMLResponse(f"<h2>Authorization denied</h2><p>{error}</p>", status_code=400)
-
-    if not code:
-        return HTMLResponse("<h2>Missing authorization code</h2>", status_code=400)
-
-    try:
-        data = exchange_code(code)
-        athlete = data.get("athlete", {})
-        name = f"{athlete.get('firstname', '')} {athlete.get('lastname', '')}".strip()
-        return HTMLResponse(
-            f"<h2>Authorization successful</h2>"
-            f"<p>Athlete: {name or 'OK'}</p>"
-            f"<p>Scopes granted. Tokens saved to .env.</p>"
-            f"<p>You can close this page and use the MCP server.</p>"
-        )
-    except Exception as e:
-        return HTMLResponse(f"<h2>Token exchange failed</h2><pre>{e}</pre>", status_code=500)
 
 
 @app.post("/")
@@ -181,23 +112,20 @@ async def rpc_handler(request: Request):
                     "resources": {},
                     "prompts": {},
                 },
-                "serverInfo": {"name": "strava-mcp", "version": "2.0"}
-            }
+                "serverInfo": {"name": "meteofrance-mcp", "version": "1.0"},
+            },
         }
 
-    # ── Notifications (no response expected) ──
     if method == "notifications/initialized":
         return {"jsonrpc": "2.0", "id": req_id, "result": {}}
 
-    # ── Tools ──
+    # -- Tools --
 
     if method == "tools/list":
         return {
             "jsonrpc": "2.0",
             "id": req_id,
-            "result": {
-                "tools": [t["definition"] for t in TOOLS.values()]
-            }
+            "result": {"tools": [t["definition"] for t in TOOLS.values()]},
         }
 
     if method == "tools/call":
@@ -209,7 +137,7 @@ async def rpc_handler(request: Request):
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,
-                "error": {"code": -32601, "message": f"Outil inconnu : '{tool_name}'"}
+                "error": {"code": -32601, "message": f"Unknown tool: '{tool_name}'"},
             }
 
         try:
@@ -217,29 +145,29 @@ async def rpc_handler(request: Request):
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,
-                "result": {"content": [{"type": "text", "text": str(result)}]}
+                "result": {"content": [{"type": "text", "text": str(result)}]},
             }
         except Exception as e:
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,
-                "error": {"code": -32000, "message": str(e)}
+                "error": {"code": -32000, "message": str(e)},
             }
 
-    # ── Resources ──
+    # -- Resources --
 
     if method == "resources/list":
         return {
             "jsonrpc": "2.0",
             "id": req_id,
-            "result": {"resources": RESOURCES}
+            "result": {"resources": RESOURCES},
         }
 
     if method == "resources/templates/list":
         return {
             "jsonrpc": "2.0",
             "id": req_id,
-            "result": {"resourceTemplates": RESOURCE_TEMPLATES}
+            "result": {"resourceTemplates": RESOURCE_TEMPLATES},
         }
 
     if method == "resources/read":
@@ -252,29 +180,27 @@ async def rpc_handler(request: Request):
                 return {
                     "jsonrpc": "2.0",
                     "id": req_id,
-                    "error": {"code": -32602, "message": f"Ressource inconnue : '{uri}'"}
+                    "error": {"code": -32602, "message": f"Unknown resource: '{uri}'"},
                 }
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,
-                "result": {"contents": [content]}
+                "result": {"contents": [content]},
             }
         except Exception as e:
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,
-                "error": {"code": -32000, "message": str(e)}
+                "error": {"code": -32000, "message": str(e)},
             }
 
-    # ── Prompts ──
+    # -- Prompts --
 
     if method == "prompts/list":
         return {
             "jsonrpc": "2.0",
             "id": req_id,
-            "result": {
-                "prompts": [p["definition"] for p in PROMPTS.values()]
-            }
+            "result": {"prompts": [p["definition"] for p in PROMPTS.values()]},
         }
 
     if method == "prompts/get":
@@ -286,27 +212,23 @@ async def rpc_handler(request: Request):
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,
-                "error": {"code": -32602, "message": f"Prompt inconnu : '{prompt_name}'"}
+                "error": {"code": -32602, "message": f"Unknown prompt: '{prompt_name}'"},
             }
 
         try:
             result = PROMPTS[prompt_name]["handler"](arguments)
-            return {
-                "jsonrpc": "2.0",
-                "id": req_id,
-                "result": result
-            }
+            return {"jsonrpc": "2.0", "id": req_id, "result": result}
         except Exception as e:
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,
-                "error": {"code": -32000, "message": str(e)}
+                "error": {"code": -32000, "message": str(e)},
             }
 
     return {
         "jsonrpc": "2.0",
         "id": req_id,
-        "error": {"code": -32601, "message": f"Méthode inconnue : '{method}'"}
+        "error": {"code": -32601, "message": f"Unknown method: '{method}'"},
     }
 
 
@@ -322,7 +244,7 @@ async def call_tool(request: Request):
     arguments = body.get("arguments") or body.get("parameters", {})
 
     if tool_name not in TOOLS:
-        return {"error": f"Outil inconnu : '{tool_name}'"}
+        return {"error": f"Unknown tool: '{tool_name}'"}
 
     try:
         result = TOOLS[tool_name]["handler"](arguments)

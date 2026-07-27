@@ -38,18 +38,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: docker build -t strava-mcp:${{ github.sha }} .
+        run: docker build -t meteofrance-mcp:${{ github.sha }} .
 
       - name: Verify container starts
         run: |
           docker run -d --name mcp-test \
-            -e STRAVA_CLIENT_ID=test \
-            -e STRAVA_CLIENT_SECRET=test \
-            -e STRAVA_ACCESS_TOKEN=test \
-            -e STRAVA_REFRESH_TOKEN=test \
-            -e STRAVA_EXPIRES_AT=0 \
             -p 8000:8000 \
-            strava-mcp:${{ github.sha }}
+            meteofrance-mcp:${{ github.sha }}
           sleep 3
           curl -sf http://localhost:8000/ | grep -q '"protocol"'
           docker stop mcp-test
